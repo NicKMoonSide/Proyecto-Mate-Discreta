@@ -11,3 +11,8 @@
 5. Ejecutar Dijkstra
 6. Imprimir caminos y pesos
 '''
+var="Hola mundo"
+print(var) 
+
+if(var == "Hola mundo"):
+    print("La variable contiene el mensaje correcto.")
