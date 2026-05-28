@@ -10,12 +10,20 @@ def generar_nombres(n):
     letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     nombres = []
     i = 0
+    
     while len(nombres) < n:
         letra = letras[i % 26]
         ciclo = i // 26
-        nombre = letra if ciclo == 0 else f"{letra}{ciclo}"
+        
+        # Construir nombre basado en el ciclo
+        if ciclo == 0:
+            nombre = letra
+        else:
+            nombre = letra + str(ciclo)
+        
         nombres.append(nombre)
-        i += 1
+        i = i + 1
+    
     return nombres
 # ────────────────────────────────────────────────────────────
 # MODULO 2: VALIDACION DE ENTRADAS GENERALES
@@ -54,10 +62,20 @@ def leer_opcion(mensaje, opciones):
             entrada = input(mensaje).strip().upper()
             if not entrada:
                 raise ValueError
-            if entrada not in [o.upper() for o in opciones]:
+            
+            # Verificar si la opcion es valida
+            es_valida = False
+            for opcion in opciones:
+                if entrada == opcion.upper():
+                    es_valida = True
+                    break
+            
+            if not es_valida:
                 print(f"  [!] Opcion invalida. Elige entre: {', '.join(opciones)}")
                 continue
+            
             return entrada
+            
         except ValueError:
             print("  [!] No ingresaste nada.")
 
@@ -154,6 +172,52 @@ def parsear_conexiones(texto, nodo_origen, nodos_validos):
 
 
 # ────────────────────────────────────────────────────────────
+# MODULO 4A: VALIDACION DE ARISTAS
+# ────────────────────────────────────────────────────────────
+
+def validar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
+    """
+    Valida si una arista puede agregarse al grafo.
+    Retorna True si puede agregarse, False si ya existe (mismo peso).
+    Lanza ValueError si hay conflicto.
+    """
+    # Grafo dirigido: no permitir arista inversa
+    if es_dirigido:
+        if nodo_origen in grafo.get(destino, {}):
+            raise ValueError(
+                f"Ya existe la arista {destino}->{nodo_origen}. "
+                f"No se permite otra arista entre los mismos nodos"
+            )
+    
+    # Grafo no dirigido: arista inversa debe tener mismo peso
+    else:
+        if destino in grafo and nodo_origen in grafo[destino]:
+            peso_existente = grafo[destino][nodo_origen]
+            if peso_existente != peso:
+                raise ValueError(
+                    f"La arista {destino}->{nodo_origen} ya existe con peso {peso_existente}. "
+                    f"No puedes redefinirla con peso {peso}"
+                )
+            return False  # Ya existe, no agregar de nuevo
+    
+    # Verificar arista directa
+    if destino in grafo[nodo_origen]:
+        raise ValueError(f"La conexion {nodo_origen}->{destino} ya fue definida")
+    
+    return True  # OK para agregar
+
+
+def agregar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
+    """
+    Agrega una arista al grafo.
+    En grafo no dirigido, agrega automaticamente la inversa.
+    """
+    grafo[nodo_origen][destino] = peso
+    if not es_dirigido:
+        grafo[destino][nodo_origen] = peso
+
+
+# ────────────────────────────────────────────────────────────
 # MODULO 4: CONSTRUCCION DEL GRAFO
 # ────────────────────────────────────────────────────────────
 
@@ -162,17 +226,12 @@ def construir_grafo(nodos, es_dirigido):
     Solicita al usuario las conexiones de cada nodo.
     Construye y devuelve el grafo como diccionario:
       { 'A': {'B': 7.0, 'C': 3.0}, 'B': {}, ... }
-
-    Controles adicionales:
-    - No dirigido: si A->B ya existe con peso 7,
-      no se permite B->A con peso diferente.
-    - No dirigido: si A->B ya existe, se agrega B->A
-      automaticamente con el mismo peso.
     """
     # Inicializar grafo vacio
-    grafo={}
+    grafo = {}
     for nodo in nodos:
-        grafo[nodo]={}
+        grafo[nodo] = {}
+    
     conjunto_nodos = set(nodos)
 
     print("\n  Reglas para ingresar conexiones:")
@@ -181,6 +240,7 @@ def construir_grafo(nodos, es_dirigido):
     print("  - Deja vacio si el nodo no tiene conexiones salientes")
     print("  - No se permiten auto-loops como (A,5)")
     print("  - Los pesos deben ser numeros positivos (> 0)")
+    
     if not es_dirigido:
         print("  - Grafo NO dirigido: A:(B,7) agrega B->A:7 automaticamente")
         print("  - Por eso no puedes redefinir B:(A,x) si ya fue agregado\n")
@@ -193,40 +253,14 @@ def construir_grafo(nodos, es_dirigido):
                 texto = input(f"  Conexiones de {nodo}: ").strip()
                 conexiones = parsear_conexiones(texto, nodo, conjunto_nodos)
 
-                # Validar cada conexion contra el grafo actual
+                # Validar todas las conexiones
                 for destino, peso in conexiones:
-                    # Verificar arista inversa en grafo DIRIGIDO
-                    if es_dirigido:
-                        if nodo in grafo.get(destino, {}):
-                           raise ValueError(
-                                 f"Ya existe la arista {destino}->{nodo}. "
-                                 f"No se permite otra arista entre los mismos nodos"
-                                    )
-                    else:
-                        # Verificar si la arista inversa ya existe 
-                        if destino in grafo and nodo in grafo[destino]:
-                            peso_existente = grafo[destino][nodo]
-                            if peso_existente != peso:
-                                raise ValueError(
-                                    f"La arista {destino}->{nodo} ya existe con peso {peso_existente}. "
-                                    f"No puedes redefinirla con peso {peso}"
-                                )
-                            else:
-                                # Mismo peso, ya existe, saltar silenciosamente
-                                continue
-
-                    # Verificar si la arista directa ya existe
-                    if destino in grafo[nodo]:
-                        raise ValueError(f"La conexion {nodo}->{destino} ya fue definida")
+                    if not validar_arista(grafo, nodo, destino, peso, es_dirigido):
+                        continue  # Arista ya existe, saltar
 
                 # Si todo valido, agregar al grafo
                 for destino, peso in conexiones:
-                    # Evitar sobreescribir si ya existe (caso ND con mismo peso)
-                    if destino not in grafo[nodo]:
-                        grafo[nodo][destino] = peso
-                        if not es_dirigido:
-                            if nodo not in grafo[destino]:
-                                grafo[destino][nodo] = peso
+                    agregar_arista(grafo, nodo, destino, peso, es_dirigido)
 
                 break  # Conexiones validas, pasar al siguiente nodo
 
@@ -234,6 +268,66 @@ def construir_grafo(nodos, es_dirigido):
                 print(f"  [!] {e}. Intenta de nuevo.")
 
     return grafo
+
+
+# ────────────────────────────────────────────────────────────
+# MODULO 5A: FUNCIONES AUXILIARES PARA DIJKSTRA
+# ────────────────────────────────────────────────────────────
+
+def inicializar_dijkstra(nodos, origen):
+    """
+    Inicializa las estructuras de datos para Dijkstra.
+    Retorna distancias, previos, visitados.
+    """
+    # Inicializar diccionario de distancias
+    distancias = {}
+    for nodo in nodos:
+        distancias[nodo] = float('inf')
+    
+    # Inicializar diccionario de previos
+    previos = {}
+    for nodo in nodos:
+        previos[nodo] = None
+    
+    # Inicializar conjunto de visitados
+    visitados = set()
+    
+    # La distancia del origen es 0
+    distancias[origen] = 0
+    
+    return distancias, previos, visitados
+
+
+def buscar_nodo_minimo(nodos, distancias, visitados):
+    """
+    Busca el nodo no visitado con menor distancia.
+    Retorna el nodo o None si no hay nodos alcanzables.
+    """
+    nodo_minimo = None
+    distancia_minima = float('inf')
+    
+    for nodo in nodos:
+        if nodo not in visitados and distancias[nodo] < distancia_minima:
+            distancia_minima = distancias[nodo]
+            nodo_minimo = nodo
+    
+    return nodo_minimo
+
+
+def actualizar_distancias_vecinos(nodo_actual, grafo, distancias, previos):
+    """
+    Actualiza las distancias de los nodos vecinos del nodo actual.
+    Si encuentra un camino mas corto a un vecino, actualiza su distancia y previo.
+    """
+    # Iterar sobre todos los vecinos del nodo actual
+    for vecino, peso in grafo[nodo_actual].items():
+        # Calcular la nueva distancia si vamos a traves del nodo actual
+        nueva_dist = distancias[nodo_actual] + peso
+        
+        # Si esta nueva distancia es mejor que la que teniamos, actualizamos
+        if nueva_dist < distancias[vecino]:
+            distancias[vecino] = nueva_dist
+            previos[vecino] = nodo_actual
 
 
 # ────────────────────────────────────────────────────────────
@@ -247,46 +341,23 @@ def dijkstra(grafo, origen):
       - distancias: dict {nodo: distancia_minima}
       - previos:    dict {nodo: nodo_anterior}  para reconstruir camino
     """
-    Distancia_Inicial_Nodos = float('inf')#Se asigna la maxima distancia a cada nodo, infinito
     nodos = list(grafo.keys())
+    distancias, previos, visitados = inicializar_dijkstra(nodos, origen)
 
-    #Inicializar distancias con infinito, excepto el origen que es 0
-    distancias={}
-    for nodo in nodos:
-         distancias[nodo]=Distancia_Inicial_Nodos
-
-    #Todos los nodos inician sin un camino, dict.Previos se inicializa con None
-    previos={}
-    for nodo in nodos:
-         previos[nodo]=None
-    #Crea un conjunto para rastrear nodos visitados, y no repetir los ya visitados uso del set()
-    visitados  = set()
-
-    distancias[origen] = 0
-
-    #Mientras haya nodos no visitados, seguir buscando el nodo con menor distancia
+    # Procesar nodos hasta que no haya mas alcanzables
     while len(visitados) < len(nodos):
-        # Seleccionar nodo no visitado con menor distancia
-        nodo_actual = None
-        menor_dist  = Distancia_Inicial_Nodos
-        for nodo in nodos:
-            if nodo not in visitados and distancias[nodo] < menor_dist:
-                menor_dist = distancias[nodo]
-                nodo_actual = nodo
-
+        # Buscar nodo no visitado con menor distancia
+        nodo_actual = buscar_nodo_minimo(nodos, distancias, visitados)
+        
         # Si no hay nodo alcanzable, terminar
         if nodo_actual is None:
             break
 
-       #Se agregan al conjunto de nodos visitados
+        # Marcar como visitado
         visitados.add(nodo_actual)
-
-        # Relajar aristas vecinas
-        for vecino, peso in grafo[nodo_actual].items():
-            nueva_dist = distancias[nodo_actual] + peso
-            if nueva_dist < distancias[vecino]:
-                distancias[vecino] = nueva_dist
-                previos[vecino]    = nodo_actual
+        
+        # Actualizar distancias de los vecinos
+        actualizar_distancias_vecinos(nodo_actual, grafo, distancias, previos)
 
     return distancias, previos
 
@@ -419,4 +490,3 @@ def menu_principal():
 
 if __name__ == "__main__":
     menu_principal()
-
