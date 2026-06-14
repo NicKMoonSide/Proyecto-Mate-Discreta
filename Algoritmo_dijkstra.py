@@ -178,33 +178,36 @@ def parsear_conexiones(texto, nodo_origen, nodos_validos):
 def validar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
     """
     Valida si una arista puede agregarse al grafo.
-    Retorna True si puede agregarse, False si ya existe (mismo peso).
-    Lanza ValueError si hay conflicto.
+    
+    Dirigido: permite A:(B,3) luego B:(A,3) si peso igual.
+             rechaza B:(A,5) si A:(B,3) existe con peso diferente.
+    No dirigido: rechaza B:(A,3) si A:(B,3) existe (redundancia, ya se agrego automaticamente).
     """
-    # Grafo dirigido: no permitir arista inversa
-    if es_dirigido:
-        if nodo_origen in grafo.get(destino, {}):
-            raise ValueError(
-                f"Ya existe la arista {destino}->{nodo_origen}. "
-                f"No se permite otra arista entre los mismos nodos"
-            )
-    
-    # Grafo no dirigido: arista inversa debe tener mismo peso
-    else:
-        if destino in grafo and nodo_origen in grafo[destino]:
-            peso_existente = grafo[destino][nodo_origen]
-            if peso_existente != peso:
-                raise ValueError(
-                    f"La arista {destino}->{nodo_origen} ya existe con peso {peso_existente}. "
-                    f"No puedes redefinirla con peso {peso}"
-                )
-            return False  # Ya existe, no agregar de nuevo
-    
-    # Verificar arista directa
+    # Verificar arista directa (siempre rechazar si existe)
     if destino in grafo[nodo_origen]:
         raise ValueError(f"La conexion {nodo_origen}->{destino} ya fue definida")
     
-    return True  # OK para agregar
+    # Grafo dirigido: permitir arista inversa si peso igual
+    if es_dirigido:
+        if nodo_origen in grafo.get(destino, {}):
+            peso_existente = grafo[destino][nodo_origen]
+            if peso_existente != peso:
+                raise ValueError(
+                    f"La arista {destino}->{nodo_origen} existe con peso {peso_existente}. "
+                    f"No puedes definir {nodo_origen}->{destino} con peso {peso} (diferente)"
+                )
+            # Mismo peso: permitir
+            return True
+    
+    # Grafo no dirigido: rechazar redundancia
+    else:
+        if destino in grafo and nodo_origen in grafo[destino]:
+            raise ValueError(
+                f"La arista {destino}->{nodo_origen} ya existe (agregada automaticamente). "
+                f"No redefinir {nodo_origen}->{destino} (redundancia en no dirigido)"
+            )
+    
+    return True
 
 
 def agregar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
@@ -237,26 +240,32 @@ def construir_grafo(nodos, es_dirigido):
     print("\n  Reglas para ingresar conexiones:")
     print("  - Formato : (NODO,PESO);(NODO,PESO)")
     print("  - Ejemplo : (B,3);(C,9.5)")
-    print("  - Deja vacio si el nodo no tiene conexiones salientes")
+    print("  - TODO nodo DEBE tener al menos una conexion (no se permiten nodos nulos)")
     print("  - No se permiten auto-loops como (A,5)")
     print("  - Los pesos deben ser numeros positivos (> 0)")
     
-    if not es_dirigido:
-        print("  - Grafo NO dirigido: A:(B,7) agrega B->A:7 automaticamente")
-        print("  - Por eso no puedes redefinir B:(A,x) si ya fue agregado\n")
+    if es_dirigido:
+        print("  - Grafo DIRIGIDO: A:(B,3) y luego B:(A,3) permitido si peso igual")
+        print("  - Pero A:(B,3) y B:(A,5) NO permitido (pesos diferentes)\n")
     else:
-        print()
+        print("  - Grafo NO dirigido: A:(B,3) agrega B->A:3 automaticamente")
+        print("  - No puedes luego ingresar B:(A,3) (redundancia)\n")
 
     for nodo in nodos:
         while True:
             try:
                 texto = input(f"  Conexiones de {nodo}: ").strip()
+                
+                # Rechazar nodos sin conexiones (nodos nulos)
+                if texto == "":
+                    print(f"  [!] El nodo '{nodo}' debe tener al menos una conexion. Intenta de nuevo.")
+                    continue
+                
                 conexiones = parsear_conexiones(texto, nodo, conjunto_nodos)
 
                 # Validar todas las conexiones
                 for destino, peso in conexiones:
-                    if not validar_arista(grafo, nodo, destino, peso, es_dirigido):
-                        continue  # Arista ya existe, saltar
+                    validar_arista(grafo, nodo, destino, peso, es_dirigido)
 
                 # Si todo valido, agregar al grafo
                 for destino, peso in conexiones:
@@ -390,6 +399,48 @@ def reconstruir_camino(previos, origen, destino):
 
 
 # ────────────────────────────────────────────────────────────
+# MODULO 7A: IMPRIMIR MATRIZ DE ADYACENCIA
+# ────────────────────────────────────────────────────────────
+
+def imprimir_matriz_adyacencia(grafo):
+    """
+    Imprime la matriz de adyacencia del grafo en formato tabular.
+    Muestra pesos de aristas, 0 si no hay conexion.
+    """
+    nodos = sorted(grafo.keys())
+    ancho_celda = 6
+    
+    print("\n  MATRIZ DE ADYACENCIA\n")
+    
+    # Encabezado
+    print("  " + " " * 4, end="")
+    for nodo in nodos:
+        print(f"{nodo:^{ancho_celda}}", end="")
+    print()
+    
+    # Linea separadora
+    print("  " + "┌" + "┬".join(["─" * ancho_celda for _ in nodos]) + "┐")
+    
+    # Filas
+    for nodo_origen in nodos:
+        print(f"  {nodo_origen} │", end="")
+        for nodo_destino in nodos:
+            if nodo_destino in grafo[nodo_origen]:
+                peso = grafo[nodo_origen][nodo_destino]
+                if peso == int(peso):
+                    valor = str(int(peso))
+                else:
+                    valor = f"{peso:.1f}"
+            else:
+                valor = "0"
+            print(f"{valor:^{ancho_celda}}", end="")
+        print("│")
+    
+    # Linea final
+    print("  " + "└" + "┴".join(["─" * ancho_celda for _ in nodos]) + "┘")
+
+
+# ────────────────────────────────────────────────────────────
 # MODULO 7: MOSTRAR RESULTADO
 # ────────────────────────────────────────────────────────────
 
@@ -447,7 +498,10 @@ def menu_principal():
         print("\nIngresa las conexiones para cada nodo:")
         grafo = construir_grafo(nodos, es_dirigido)
 
-        # ── Paso 5: Bucle origen/destino ───────────────────
+        # ── Paso 5: Mostrar matriz de adyacencia ────────────
+        imprimir_matriz_adyacencia(grafo)
+
+        # ── Paso 6: Bucle origen/destino ───────────────────
         continuar_consultas = True
 
         while continuar_consultas:
