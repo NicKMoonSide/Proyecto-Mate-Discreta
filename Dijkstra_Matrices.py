@@ -4,8 +4,7 @@
 
 def generar_nombres(n):
     """
-    Genera n nombres unicos de nodos en orden:
-    A, B, ..., Z, A1, B1, ..., Z1, A2, ...
+    Genera n nombres unicos de nodos: A, B, ..., Z, A1, B1, ..., Z1, A2, ...
     """
     letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     nombres = []
@@ -15,7 +14,6 @@ def generar_nombres(n):
         letra = letras[i % 26]
         ciclo = i // 26
         
-        # Construir nombre basado en el ciclo
         if ciclo == 0:
             nombre = letra
         else:
@@ -25,14 +23,16 @@ def generar_nombres(n):
         i = i + 1
     
     return nombres
+
+
 # ────────────────────────────────────────────────────────────
 # MODULO 2: VALIDACION DE ENTRADAS GENERALES
 # ────────────────────────────────────────────────────────────
-def leer_entero_positivo(mensaje):
+
+def leer_entero_positivo(mensaje, minimo=2):
     """
-    Lee un numero entero >= 1 desde consola.
-    Acepta floats enteros como 3.0 (los convierte).
-    Rechaza: negativos, cero, strings, floats con decimal.
+    Lee entero >= minimo. Acepta floats enteros como 3.0.
+    Rechaza: negativos, < minimo, strings, floats con decimal.
     """
     while True:
         try:
@@ -41,21 +41,20 @@ def leer_entero_positivo(mensaje):
                 raise ValueError
             valor = float(entrada)
             if valor != int(valor):
-                # Float con decimal real, ej: 2.5
-                print("  [!] Solo se permiten numeros enteros positivos (nd>= 2).")
+                print("  [!] Solo se permiten numeros enteros positivos.")
                 continue
             valor = int(valor)
-            if valor < 2:
-                print("  [!] El numero debe ser >= 2.")
+            if valor < minimo:
+                print(f"  [!] El numero debe ser >= {minimo}.")
                 continue
             return valor
         except ValueError:
-            print("  [!] Entrada invalida. Ingresa un numero entero positivo.")
+            print(f"  [!] Entrada invalida. Ingresa entero >= {minimo}.")
+
 
 def leer_opcion(mensaje, opciones):
     """
-    Lee una opcion de una lista de strings validos (case-insensitive).
-    Devuelve la opcion en mayusculas.
+    Lee opcion de lista (case-insensitive). Devuelve en mayusculas.
     """
     while True:
         try:
@@ -63,7 +62,6 @@ def leer_opcion(mensaje, opciones):
             if not entrada:
                 raise ValueError
             
-            # Verificar si la opcion es valida
             es_valida = False
             for opcion in opciones:
                 if entrada == opcion.upper():
@@ -82,7 +80,7 @@ def leer_opcion(mensaje, opciones):
 
 def leer_nodo_existente(mensaje, nodos):
     """
-    Lee un nombre de nodo y valida que exista en el conjunto.
+    Lee nombre de nodo y valida que exista.
     """
     while True:
         try:
@@ -90,7 +88,7 @@ def leer_nodo_existente(mensaje, nodos):
             if not entrada:
                 raise ValueError
             if entrada not in nodos:
-                print(f"  [!] El nodo '{entrada}' no existe. Nodos disponibles: {', '.join(sorted(nodos))}")
+                print(f"  [!] El nodo '{entrada}' no existe. Disponibles: {', '.join(sorted(nodos))}")
                 continue
             return entrada
         except ValueError:
@@ -98,70 +96,51 @@ def leer_nodo_existente(mensaje, nodos):
 
 
 # ────────────────────────────────────────────────────────────
-# MODULO 3: PARSER Y VALIDADOR DE CONEXIONES
+# MODULO 3: PARSER DE CONEXIONES
 # ────────────────────────────────────────────────────────────
 
 def parsear_conexiones(texto, nodo_origen, nodos_validos):
     """
-    Parsea una cadena de conexiones con formato: (B,3);(C,9.5)
-    Devuelve lista de tuplas (destino, peso) si todo es valido.
-    Lanza ValueError con mensaje descriptivo si hay error.
-
-    Reglas:
-    - Formato: (NODO,PESO) separados por ;
-    - NODO debe existir en nodos_validos
-    - NODO no puede ser el mismo nodo_origen o bucle 
-    - PESO debe ser float o int positivo (> 0)
-    - No se permiten destinos duplicados en la misma entrada
+    Parsea formato (B,3);(C,9.5). Devuelve lista [(destino, peso), ...].
     """
     texto = texto.strip()
 
-    # Entrada vacia = sin conexiones
     if texto == "":
         return []
 
     conexiones = []
     destinos_vistos = set()
-
-    # Dividir por ; para obtener cada par (NODO,PESO)
     partes = texto.split(";")
 
     for parte in partes:
         parte = parte.strip()
 
-        # Validar que tenga parentesis
         if not (parte.startswith("(") and parte.endswith(")")):
             raise ValueError(f"Formato incorrecto en '{parte}'. Usa (NODO,PESO)")
 
-        # Quitar parentesis
         interior = parte[1:-1].strip()
-
-        # Dividir por coma
         componentes = interior.split(",")
+        
         if len(componentes) != 2:
             raise ValueError(f"Se esperaba (NODO,PESO) pero se recibio '{parte}'")
 
         destino = componentes[0].strip().upper()
         peso_str = componentes[1].strip()
 
-        # Validar nodo destino
         if destino not in nodos_validos:
-            raise ValueError(f"El nodo '{destino}' no existe en el grafo")
+            raise ValueError(f"El nodo '{destino}' no existe")
 
-        # Validar auto-loop
         if destino == nodo_origen:
-            raise ValueError(f"Auto-loop no permitido: '{nodo_origen}' no puede conectarse a si mismo")
+            raise ValueError(f"Auto-loop no permitido: {nodo_origen} no puede conectarse a si mismo")
 
-        # Validar destino duplicado en esta entrada
         if destino in destinos_vistos:
-            raise ValueError(f"El destino '{destino}' aparece mas de una vez desde '{nodo_origen}'")
+            raise ValueError(f"El destino '{destino}' aparece mas de una vez")
         destinos_vistos.add(destino)
 
-        # Validar peso
         try:
             peso = float(peso_str)
         except ValueError:
-            raise ValueError(f"Peso invalido '{peso_str}'. Debe ser un numero positivo")
+            raise ValueError(f"Peso invalido '{peso_str}'. Debe ser numero positivo")
 
         if peso <= 0:
             raise ValueError(f"El peso debe ser > 0, se recibio '{peso}'")
@@ -175,65 +154,78 @@ def parsear_conexiones(texto, nodo_origen, nodos_validos):
 # MODULO 4A: VALIDACION DE ARISTAS
 # ────────────────────────────────────────────────────────────
 
-def validar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
+def validar_arista_matriz(matriz, indice_origen, indice_destino, peso, es_dirigido):
     """
-    Valida si una arista puede agregarse al grafo.
-    
-    Dirigido: permite A:(B,3) luego B:(A,3) si peso igual.
-             rechaza B:(A,5) si A:(B,3) existe con peso diferente.
-    No dirigido: rechaza B:(A,3) si A:(B,3) existe (redundancia, ya se agrego automaticamente).
+    Valida si arista puede agregarse a la matriz.
+    Dirigido: permite A→B y B→A si peso igual, rechaza si diferente.
+    No dirigido: permite ingresar inversa si existe con mismo peso (no la agrega de nuevo).
     """
-    # Verificar arista directa (siempre rechazar si existe)
-    if destino in grafo[nodo_origen]:
-        raise ValueError(f"La conexion {nodo_origen}->{destino} ya fue definida")
+    # Verificar arista directa
+    if matriz[indice_origen][indice_destino] != 0:
+        raise ValueError(f"La conexion ya fue definida")
     
-    # Grafo dirigido: permitir arista inversa si peso igual
+    # Grafo dirigido
     if es_dirigido:
-        if nodo_origen in grafo.get(destino, {}):
-            peso_existente = grafo[destino][nodo_origen]
+        if matriz[indice_destino][indice_origen] != 0:
+            peso_existente = matriz[indice_destino][indice_origen]
             if peso_existente != peso:
                 raise ValueError(
-                    f"La arista {destino}->{nodo_origen} existe con peso {peso_existente}. "
-                    f"No puedes definir {nodo_origen}->{destino} con peso {peso} (diferente)"
+                    f"La arista inversa existe con peso {peso_existente}. "
+                    f"No puedes definir con peso {peso} (diferente)"
                 )
-            # Mismo peso: permitir
-            return True
     
-    # Grafo no dirigido: rechazar redundancia
+    # Grafo no dirigido: permitir si inversa existe con mismo peso
     else:
-        if destino in grafo and nodo_origen in grafo[destino]:
-            raise ValueError(
-                f"La arista {destino}->{nodo_origen} ya existe (agregada automaticamente). "
-                f"No redefinir {nodo_origen}->{destino} (redundancia en no dirigido)"
-            )
+        if matriz[indice_destino][indice_origen] != 0:
+            peso_existente = matriz[indice_destino][indice_origen]
+            if peso_existente != peso:
+                raise ValueError(
+                    f"La arista inversa existe con peso {peso_existente}. "
+                    f"No puedes definir con peso {peso} (diferente)"
+                )
+            # Mismo peso: permitir (no se agregara de nuevo en agregar_arista_matriz)
     
     return True
 
 
-def agregar_arista(grafo, nodo_origen, destino, peso, es_dirigido):
+def agregar_arista_matriz(matriz, indice_origen, indice_destino, peso, es_dirigido):
     """
-    Agrega una arista al grafo.
-    En grafo no dirigido, agrega automaticamente la inversa.
+    Agrega arista a la matriz solo si no existe.
+    En no dirigido, agrega inversa solo si no existe.
     """
-    grafo[nodo_origen][destino] = peso
+    # Agregar si no existe
+    if matriz[indice_origen][indice_destino] == 0:
+        matriz[indice_origen][indice_destino] = peso
+    
     if not es_dirigido:
-        grafo[destino][nodo_origen] = peso
+        # Agregar inversa solo si no existe
+        if matriz[indice_destino][indice_origen] == 0:
+            matriz[indice_destino][indice_origen] = peso
 
 
 # ────────────────────────────────────────────────────────────
-# MODULO 4: CONSTRUCCION DEL GRAFO
+# MODULO 4: CONSTRUCCION DEL GRAFO (MATRIZ)
 # ────────────────────────────────────────────────────────────
 
-def construir_grafo(nodos, es_dirigido):
+def construir_grafo_matriz(nodos, es_dirigido):
     """
-    Solicita al usuario las conexiones de cada nodo.
-    Construye y devuelve el grafo como diccionario:
-      { 'A': {'B': 7.0, 'C': 3.0}, 'B': {}, ... }
+    Solicita conexiones de cada nodo. Construye matriz de adyacencia.
+    0 = sin conexion, valor numerico = peso de arista.
     """
-    # Inicializar grafo vacio
-    grafo = {}
-    for nodo in nodos:
-        grafo[nodo] = {}
+    n = len(nodos)
+    
+    # Crear matriz nxn con ceros (sin conexiones)
+    matriz = []
+    for i in range(n):
+        fila = []
+        for j in range(n):
+            fila.append(0)
+        matriz.append(fila)
+    
+    # Mapeo nodo → indice
+    nodo_a_indice = {}
+    for i in range(n):
+        nodo_a_indice[nodos[i]] = i
     
     conjunto_nodos = set(nodos)
 
@@ -241,7 +233,7 @@ def construir_grafo(nodos, es_dirigido):
     print("  - Formato : (NODO,PESO);(NODO,PESO)")
     print("  - Ejemplo : (B,3);(C,9.5)")
     print("  - TODO nodo DEBE tener al menos una conexion (no se permiten nodos nulos)")
-    print("  - No se permiten auto-loops como (A,5)")
+    print("  - No se permiten auto-loops")
     print("  - Los pesos deben ser numeros positivos (> 0)")
     
     if es_dirigido:
@@ -255,118 +247,113 @@ def construir_grafo(nodos, es_dirigido):
         while True:
             try:
                 texto = input(f"  Conexiones de {nodo}: ").strip()
+                indice_nodo = nodo_a_indice[nodo]
                 
-                # Rechazar nodos sin conexiones (nodos nulos)
+                # Rechazar nodos sin conexiones solo si no tienen aristas inversas
                 if texto == "":
+                    tiene_inversas = False
+                    for i in range(n):
+                        if matriz[i][indice_nodo] != 0:
+                            tiene_inversas = True
+                            break
+                    
+                    if tiene_inversas:
+                        break  # Permitir entrada vacía (tiene aristas apuntando a él)
+                    
                     print(f"  [!] El nodo '{nodo}' debe tener al menos una conexion. Intenta de nuevo.")
                     continue
                 
                 conexiones = parsear_conexiones(texto, nodo, conjunto_nodos)
+                indice_origen = nodo_a_indice[nodo]
 
                 # Validar todas las conexiones
                 for destino, peso in conexiones:
-                    validar_arista(grafo, nodo, destino, peso, es_dirigido)
+                    indice_destino = nodo_a_indice[destino]
+                    validar_arista_matriz(matriz, indice_origen, indice_destino, peso, es_dirigido)
 
-                # Si todo valido, agregar al grafo
+                # Agregar al grafo
                 for destino, peso in conexiones:
-                    agregar_arista(grafo, nodo, destino, peso, es_dirigido)
+                    indice_destino = nodo_a_indice[destino]
+                    agregar_arista_matriz(matriz, indice_origen, indice_destino, peso, es_dirigido)
 
-                break  # Conexiones validas, pasar al siguiente nodo
+                break
 
             except ValueError as e:
                 print(f"  [!] {e}. Intenta de nuevo.")
 
-    return grafo
+    return matriz, nodo_a_indice
 
 
 # ────────────────────────────────────────────────────────────
 # MODULO 5A: FUNCIONES AUXILIARES PARA DIJKSTRA
 # ────────────────────────────────────────────────────────────
 
-def inicializar_dijkstra(nodos, origen):
+def inicializar_dijkstra(n, indice_origen):
     """
-    Inicializa las estructuras de datos para Dijkstra.
-    Retorna distancias, previos, visitados.
+    Inicializa estructuras para Dijkstra.
     """
-    # Inicializar diccionario de distancias
-    distancias = {}
-    for nodo in nodos:
-        distancias[nodo] = float('inf')
+    distancias = []
+    for i in range(n):
+        distancias.append(float('inf'))
     
-    # Inicializar diccionario de previos
-    previos = {}
-    for nodo in nodos:
-        previos[nodo] = None
+    previos = []
+    for i in range(n):
+        previos.append(None)
     
-    # Inicializar conjunto de visitados
     visitados = set()
-    
-    # La distancia del origen es 0
-    distancias[origen] = 0
+    distancias[indice_origen] = 0
     
     return distancias, previos, visitados
 
 
-def buscar_nodo_minimo(nodos, distancias, visitados):
+def buscar_nodo_minimo(n, distancias, visitados):
     """
-    Busca el nodo no visitado con menor distancia.
-    Retorna el nodo o None si no hay nodos alcanzables.
+    Busca nodo no visitado con menor distancia.
     """
     nodo_minimo = None
     distancia_minima = float('inf')
     
-    for nodo in nodos:
-        if nodo not in visitados and distancias[nodo] < distancia_minima:
-            distancia_minima = distancias[nodo]
-            nodo_minimo = nodo
+    for i in range(n):
+        if i not in visitados and distancias[i] < distancia_minima:
+            distancia_minima = distancias[i]
+            nodo_minimo = i
     
     return nodo_minimo
 
 
-def actualizar_distancias_vecinos(nodo_actual, grafo, distancias, previos):
+def actualizar_distancias_vecinos(indice_actual, matriz, distancias, previos, n):
     """
-    Actualiza las distancias de los nodos vecinos del nodo actual.
-    Si encuentra un camino mas corto a un vecino, actualiza su distancia y previo.
+    Actualiza distancias de vecinos del nodo actual.
     """
-    # Iterar sobre todos los vecinos del nodo actual
-    for vecino, peso in grafo[nodo_actual].items():
-        # Calcular la nueva distancia si vamos a traves del nodo actual
-        nueva_dist = distancias[nodo_actual] + peso
-        
-        # Si esta nueva distancia es mejor que la que teniamos, actualizamos
-        if nueva_dist < distancias[vecino]:
-            distancias[vecino] = nueva_dist
-            previos[vecino] = nodo_actual
+    for j in range(n):
+        if matriz[indice_actual][j] != 0:  # Hay arista
+            peso = matriz[indice_actual][j]
+            nueva_dist = distancias[indice_actual] + peso
+            if nueva_dist < distancias[j]:
+                distancias[j] = nueva_dist
+                previos[j] = indice_actual
 
 
 # ────────────────────────────────────────────────────────────
 # MODULO 5: ALGORITMO DE DIJKSTRA
 # ────────────────────────────────────────────────────────────
 
-def dijkstra(grafo, origen):
+def dijkstra(matriz, indice_origen):
     """
-    Ejecuta Dijkstra desde el nodo origen sobre el grafo.
-    Devuelve:
-      - distancias: dict {nodo: distancia_minima}
-      - previos:    dict {nodo: nodo_anterior}  para reconstruir camino
+    Ejecuta Dijkstra desde indice_origen sobre matriz.
+    Devuelve distancias y previos.
     """
-    nodos = list(grafo.keys())
-    distancias, previos, visitados = inicializar_dijkstra(nodos, origen)
+    n = len(matriz)
+    distancias, previos, visitados = inicializar_dijkstra(n, indice_origen)
 
-    # Procesar nodos hasta que no haya mas alcanzables
-    while len(visitados) < len(nodos):
-        # Buscar nodo no visitado con menor distancia
-        nodo_actual = buscar_nodo_minimo(nodos, distancias, visitados)
+    while len(visitados) < n:
+        nodo_actual = buscar_nodo_minimo(n, distancias, visitados)
         
-        # Si no hay nodo alcanzable, terminar
         if nodo_actual is None:
             break
 
-        # Marcar como visitado
         visitados.add(nodo_actual)
-        
-        # Actualizar distancias de los vecinos
-        actualizar_distancias_vecinos(nodo_actual, grafo, distancias, previos)
+        actualizar_distancias_vecinos(nodo_actual, matriz, distancias, previos, n)
 
     return distancias, previos
 
@@ -375,24 +362,20 @@ def dijkstra(grafo, origen):
 # MODULO 6: RECONSTRUCCION DEL CAMINO
 # ────────────────────────────────────────────────────────────
 
-def reconstruir_camino(previos, origen, destino):
+def reconstruir_camino(previos, indice_origen, indice_destino):
     """
-    Reconstruye la lista de nodos del camino minimo
-    desde origen hasta destino usando el dict de previos.
-    Devuelve lista vacia si no hay camino.
+    Reconstruye camino usando previos (con indices).
     """
     camino = []
-    actual = destino
+    actual = indice_destino
 
-    # Va iterando los valores del diccionario previo y guardando en una lista
     while actual is not None:
         camino.append(actual)
         actual = previos[actual]
 
     camino.reverse()
 
-    # Verificar que el camino realmente llega desde el origen
-    if camino[0] != origen:
+    if camino[0] != indice_origen:
         return []
 
     return camino
@@ -402,12 +385,11 @@ def reconstruir_camino(previos, origen, destino):
 # MODULO 7A: IMPRIMIR MATRIZ DE ADYACENCIA
 # ────────────────────────────────────────────────────────────
 
-def imprimir_matriz_adyacencia(grafo):
+def imprimir_matriz_adyacencia(matriz, nodos):
     """
-    Imprime la matriz de adyacencia del grafo en formato tabular.
-    Muestra pesos de aristas, 0 si no hay conexion.
+    Imprime matriz de adyacencia. 0 = sin conexion, numero = peso.
     """
-    nodos = sorted(grafo.keys())
+    n = len(nodos)
     ancho_celda = 6
     
     print("\n  MATRIZ DE ADYACENCIA\n")
@@ -419,48 +401,56 @@ def imprimir_matriz_adyacencia(grafo):
     print()
     
     # Linea separadora
-    print("  " + "┌" + "┬".join(["─" * ancho_celda for _ in nodos]) + "┐")
+    print("  " + "┌" + "┬".join(["─" * ancho_celda for _ in range(n)]) + "┐")
     
     # Filas
-    for nodo_origen in nodos:
-        print(f"  {nodo_origen} │", end="")
-        for nodo_destino in nodos:
-            if nodo_destino in grafo[nodo_origen]:
-                peso = grafo[nodo_origen][nodo_destino]
-                if peso == int(peso):
-                    valor = str(int(peso))
-                else:
-                    valor = f"{peso:.1f}"
-            else:
+    for i in range(n):
+        print(f"  {nodos[i]} │", end="")
+        for j in range(n):
+            peso = matriz[i][j]
+            if peso == 0:
                 valor = "0"
+            elif peso == int(peso):
+                valor = str(int(peso))
+            else:
+                valor = f"{peso:.1f}"
             print(f"{valor:^{ancho_celda}}", end="")
         print("│")
     
     # Linea final
-    print("  " + "└" + "┴".join(["─" * ancho_celda for _ in nodos]) + "┘")
+    print("  " + "└" + "┴".join(["─" * ancho_celda for _ in range(n)]) + "┘")
 
 
 # ────────────────────────────────────────────────────────────
 # MODULO 7: MOSTRAR RESULTADO
 # ────────────────────────────────────────────────────────────
 
-def mostrar_resultado(camino, distancia, origen, destino):
+def mostrar_resultado(camino_indices, distancia, nodos, indice_origen, indice_destino):
     """
-    Imprime el resultado del camino minimo.
+    Imprime resultado del camino minimo (convierte indices a nombres).
     """
     print()
-    if origen == destino:
-        print(f"  Resultado: {origen} con peso: 0")
+    if indice_origen == indice_destino:
+        print(f"  Resultado: {nodos[indice_origen]} con peso: 0")
         return
 
-    if not camino or distancia == float('inf'):
-        print(f"  Resultado: No existe camino de '{origen}' a '{destino}'")
+    if not camino_indices or distancia == float('inf'):
+        print(f"  Resultado: No existe camino de '{nodos[indice_origen]}' a '{nodos[indice_destino]}'")
         return
 
-    camino_str = " -> ".join(camino)
-    print(f"  Camino minimo de '{origen}' a '{destino}': {camino_str} con peso: {distancia}" )
-
-
+    # Convertir indices a nombres
+    camino_nombres = []
+    for indice in camino_indices:
+        camino_nombres.append(nodos[indice])
+    
+    camino_str = " -> ".join(camino_nombres)
+    
+    if distancia == int(distancia):
+        peso_str = str(int(distancia))
+    else:
+        peso_str = f"{distancia:.2f}"
+    
+    print(f"  Camino minimo: {camino_str} con peso: {peso_str}")
 
 
 # ────────────────────────────────────────────────────────────
@@ -469,60 +459,62 @@ def mostrar_resultado(camino, distancia, origen, destino):
 
 def menu_principal():
     """
-    Punto de entrada del programa.
-    Controla el flujo completo y el menu de repeticion.
+    Punto de entrada. Controla flujo completo.
     """
     print("=" * 50)
-    print("        ALGORITMO DE DIJKSTRA")
+    print("        ALGORITMO DE DIJKSTRA (MATRICES)")
     print("=" * 50)
 
     continuar_programa = True
 
     while continuar_programa:
 
-        # ── Paso 1: Tipo de grafo ──────────────────────────
+        # Paso 1: Tipo de grafo
         tipo = leer_opcion(
             "\nTipo de grafo (D = Dirigido, ND = No dirigido): ",
             ["D", "ND"]
         )
         es_dirigido = (tipo == "D")
 
-        # ── Paso 2: Cantidad de nodos ──────────────────────
-        n = leer_entero_positivo("Cantidad de nodos: ")
+        # Paso 2: Cantidad de nodos
+        n = leer_entero_positivo("Cantidad de nodos: ", minimo=2)
 
-        # ── Paso 3: Generar nombres ────────────────────────
+        # Paso 3: Generar nombres
         nodos = generar_nombres(n)
         print(f"\nNodos generados: {', '.join(nodos)}")
 
-        # ── Paso 4: Ingresar conexiones ────────────────────
+        # Paso 4: Ingresar conexiones
         print("\nIngresa las conexiones para cada nodo:")
-        grafo = construir_grafo(nodos, es_dirigido)
+        matriz, nodo_a_indice = construir_grafo_matriz(nodos, es_dirigido)
 
-        # ── Paso 5: Mostrar matriz de adyacencia ────────────
-        imprimir_matriz_adyacencia(grafo)
+        # Paso 5: Mostrar matriz
+        imprimir_matriz_adyacencia(matriz, nodos)
 
-        # ── Paso 6: Bucle origen/destino ───────────────────
+        # Paso 6: Bucle origen/destino
         continuar_consultas = True
 
         while continuar_consultas:
             print()
-            origen  = leer_nodo_existente("Nodo origen  : ", set(nodos))
+            origen = leer_nodo_existente("Nodo origen  : ", set(nodos))
             destino = leer_nodo_existente("Nodo destino : ", set(nodos))
 
+            indice_origen = nodo_a_indice[origen]
+            indice_destino = nodo_a_indice[destino]
+
             # Ejecutar Dijkstra
-            distancias, previos = dijkstra(grafo, origen)
+            distancias, previos = dijkstra(matriz, indice_origen)
 
             # Reconstruir y mostrar
-            if origen == destino:
-                mostrar_resultado([], 0, origen, destino)
+            if indice_origen == indice_destino:
+                mostrar_resultado([], 0, nodos, indice_origen, indice_destino)
             else:
-                camino = reconstruir_camino(previos, origen, destino)
-                mostrar_resultado(camino, distancias[destino], origen, destino)
+                camino = reconstruir_camino(previos, indice_origen, indice_destino)
+                mostrar_resultado(camino, distancias[indice_destino], nodos, indice_origen, indice_destino)
 
-            # Preguntar que hacer despues
+            # Menu
             print()
             opcion = leer_opcion(
-                "Opciones: (C) = Nueva consulta mismo grafo | (N) = Nuevo grafo | (S) = Salir : ",
+                "Opciones: (C) = Nueva consulta | (N) = Nuevo grafo | (S) = Salir : ",
                 ["C", "N", "S"]
             )
 
@@ -530,10 +522,10 @@ def menu_principal():
                 continuar_consultas = True
             elif opcion == "N":
                 continuar_consultas = False
-                continuar_programa  = True
+                continuar_programa = True
             elif opcion == "S":
                 continuar_consultas = False
-                continuar_programa  = False
+                continuar_programa = False
 
     print("\nPrograma terminado.")
 
